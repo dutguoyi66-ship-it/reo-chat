@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>御影玲王 — トーク</title>
+<style>
+:root {
+  --primary: #06C755;
+  --header-bg: #273246;
+  --bg: #F5F5F5;
+  --bubble-sent: #06C755;
+  --bubble-recv: #FFFFFF;
+  --text: #333333;
+  --text-secondary: #999999;
+  --text-light: #FFFFFF;
+  --badge: #FF3B30;
+  --border: #E5E5E5;
+  --font: "Hiragino Sans","Noto Sans JP","Helvetica Neue",Arial,sans-serif;
+  --safe-top: env(safe-area-inset-top,20px);
+  --safe-bottom: env(safe-area-inset-bottom,0px);
+  --br-sent: 18px 18px 4px 18px;
+  --br-recv: 18px 18px 18px 4px;
+  --chat-bg: #F5F5F5;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text)}
+body{overscroll-behavior-y:none;display:flex;flex-direction:column;max-width:480px;margin:0 auto;position:relative;min-height:100vh;min-height:-webkit-fill-available}
+#splash{position:fixed;inset:0;z-index:100;background:#273246;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .5s}
+#splash.hidden{opacity:0;pointer-events:none}
+#splash h1{color:#fff;font-size:28px;font-weight:700;margin-bottom:8px}
+#splash p{color:rgba(255,255,255,.6);font-size:14px}
+.splash-loader{width:40px;height:40px;border:3px solid rgba(255,255,255,.1);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:24px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-bar{height:var(--safe-top);background:var(--header-bg);flex-shrink:0}
+#page-chatlist{display:flex;flex-direction:column;flex:1;min-height:0}
+.header{background:var(--header-bg);padding:8px 16px 12px;flex-shrink:0}
+.header-row{display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;font-weight:700;color:var(--text-light);letter-spacing:.5px}
+.header-actions{display:flex;gap:16px}
+.header-actions button{background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;padding:4px}
+.chat-list-wrap{flex:1;overflow-y:auto;background:#fff;border-radius:16px 16px 0 0;margin-top:4px}
+.chat-item{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background .15s}
+.chat-item:active{background:rgba(0,0,0,.03)}
+.chat-avatar{width:48px;height:48px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;position:relative}
+.chat-avatar .status-dot{position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;border-radius:50%;border:2px solid #fff;background:#34c759}
+.chat-content{flex:1;min-width:0}
+.chat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.chat-name{font-size:15px;font-weight:600;color:var(--text)}
+.chat-time{font-size:11px;color:var(--text-secondary);flex-shrink:0;margin-left:8px}
+.chat-bottom{display:flex;align-items:center}
+.chat-preview{font-size:13px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.chat-badge{min-width:20px;height:20px;border-radius:10px;background:var(--badge);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;margin-left:8px}
+.chat-divider{margin-left:72px;border-bottom:1px solid var(--border)}
+.badge-new{background:var(--primary)}
+#page-chat{display:none;flex-direction:column;flex:1;min-height:0}
+.chat-header{background:var(--header-bg);padding:4px 8px;padding-top:calc(var(--safe-top) + 4px);flex-shrink:0}
+.chat-header-row{display:flex;align-items:center;gap:4px}
+.back-btn{background:none;border:none;color:var(--text-light);font-size:24px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.chat-header-info{flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+.chat-header-name{font-size:15px;font-weight:600;color:var(--text-light)}
+.chat-header-status{font-size:11px;color:rgba(255,255,255,.6)}
+.chat-header-actions{display:flex;gap:2px}
+.chat-header-actions button{background:none;border:none;color:rgba(255,255,255,.8);font-size:18px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.rel-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(139,92,246,.15);color:#8B5CF6;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;margin-top:2px}
+.chat-messages{flex:1;overflow-y:auto;padding:8px 0;background:var(--chat-bg);scroll-behavior:smooth}
+.typing-indicator{display:flex;align-items:center;gap:3px;padding:12px 16px;margin:4px 48px 8px 52px;background:#fff;border-radius:18px 18px 18px 4px;box-shadow:0 1px 2px rgba(0,0,0,.06);width:fit-content}
+.typing-indicator span{width:8px;height:8px;border-radius:50%;background:#bbb;animation:typingBounce 1.4s ease-in-out infinite}
+.typing-indicator span:nth-child(2){animation-delay:.2s}
+.typing-indicator span:nth-child(3){animation-delay:.4s}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.date-divider{display:flex;justify-content:center;margin:16px 0}
+.date-divider span{background:rgba(0,0,0,.05);padding:4px 12px;border-radius:12px;font-size:12px;color:#888}
+.message{display:flex;align-items:flex-end;gap:8px;margin-bottom:6px;padding:0 12px;animation:msgIn .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes msgIn{0%{opacity:0;transform:translateY(12px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.message.sent{justify-content:flex-end}
+.message.recv{justify-content:flex-start}
+.msg-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600}
+.msg-avatar-placeholder{width:32px;flex-shrink:0}
+.msg-content{max-width:75%;display:flex;flex-direction:column}
+.msg-name{font-size:11px;color:#999;margin-bottom:2px;margin-left:4px}
+.msg-bubble{padding:10px 14px;font-size:15px;line-height:1.5;word-break:break-word;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.sent .msg-bubble{background:var(--bubble-sent);color:#fff;border-radius:var(--br-sent)}
+.recv .msg-bubble{background:var(--bubble-recv);color:var(--text);border-radius:var(--br-recv)}
+.msg-meta{display:flex;align-items:center;gap:4px;margin-top:2px;padding:0 4px;font-size:11px;color:#999}
+.sent .msg-meta{justify-content:flex-end}
+.input-area{background:var(--bg);border-top:1px solid var(--border);padding:8px 12px;padding-bottom:calc(var(--safe-bottom) + 8px);flex-shrink:0}
+.input-row{display:flex;align-items:flex-end;gap:8px}
+.input-wrap{flex:1;display:flex;align-items:flex-end;gap:8px;background:#fff;border-radius:18px;padding:6px 12px;border:1px solid #e0e0e0}
+.input-wrap textarea{flex:1;border:none;background:transparent;font-size:15px;resize:none;outline:none;max-height:120px;line-height:1.4;font-family:var(--font);color:var(--text);padding:2px 0}
+.send-btn{width:36px;height:36px;border-radius:50%;background:var(--primary);border:none;color:#fff;font-size:16px;cursor:pointer;display:none;align-items:center;justify-content:center;flex-shrink:0;animation:popIn .2s ease-out}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+#configPanel{position:fixed;inset:0;z-index:50;display:none}
+#configPanel.show{display:block}
+.config-overlay{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+.config-modal{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-radius:20px 20px 0 0;max-height:80vh;overflow-y:auto;animation:slideUp .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes slideUp{0%{transform:translateX(-50%) translateY(100%)}100%{transform:translateX(-50%) translateY(0)}}
+.config-handle{display:flex;justify-content:center;padding:8px 0 4px}
+.config-handle span{width:36px;height:4px;border-radius:2px;background:#ddd}
+.config-title{font-size:17px;font-weight:600;padding:8px 20px 12px}
+.config-body{padding:4px 20px 24px}
+.config-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.config-item:last-child{border:none}
+.config-item .cl{display:flex;align-items:center;gap:10px;font-size:14px}
+.config-item .cl .ic{font-size:18px}
+.config-input{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #ddd;font-size:14px;outline:none;font-family:var(--font);margin-top:8px;box-sizing:border-box}
+.config-input:focus{border-color:var(--primary)}
+select.config-input{appearance:auto;background:#fff}
+.hidden{display:none!important}
+.is-typing .send-btn{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-loader"></div>
+  <h1>トーク</h1>
+  <p>御影玲王とつながっています</p>
+</div>
+
+<div class="status-bar"></div>
+
+<div id="page-chatlist">
+  <div class="header">
+    <div class="header-row">
+      <h1>トーク</h1>
+      <div class="header-actions">
+        <button onclick="toggleConfig()">⚙️</button>
+      </div>
+    </div>
+  </div>
+  <div class="chat-list-wrap" id="chatList"></div>
+</div>
+
+<div id="page-chat">
+  <div class="chat-header">
+    <div class="chat-header-row">
+      <button class="back-btn" onclick="showChatList()">‹</button>
+      <div class="chat-header-info">
+        <div class="chat-avatar" id="chatHeaderAvatar" style="width:36px;height:36px;font-size:12px;background:#8B5CF6">玲</div>
+        <div>
+          <div class="chat-header-name">御影玲王</div>
+          <div class="chat-header-status">オンライン</div>
+          <div class="rel-badge" id="relBadge">♡ クラスメート</div>
+        </div>
+      </div>
+      <div class="chat-header-actions">
+        <button onclick="toggleConfig()">⚙️</button>
+      </div>
+    </div>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="input-area" id="inputArea">
+    <div class="input-row">
+      <div class="input-wrap">
+        <textarea id="msgInput" rows="1" placeholder="メッセージを入力" oninput="autoResize(this);toggleSend()" onkeydown="onInputKey(event)"></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendMsg()">➤</button>
+    </div>
+  </div>
+</div>
+
+<div id="typingIndicator" class="hidden" style="padding:4px 12px">
+  <div class="typing-indicator"><span></span><span></span><span></span></div>
+</div>
+
+<div id="configPanel">
+  <div class="config-overlay" onclick="toggleConfig()"></div>
+  <div class="config-modal">
+    <div class="config-handle"><span></span></div>
+    <div class="config-title">設定</div>
+    <div class="config-body">
+      <div class="config-item">
+        <div class="cl"><span class="ic">🔑</span> API Key</div>
+        <span style="font-size:12px;color:#999" id="apiStatus">未設定</span>
+      </div>
+      <div style="margin-bottom:12px">
+        <input class="config-input" id="apiKeyInput" type="password" placeholder="APIキーを入力" onchange="saveConfig()">
+      </div>
+      <div class="config-item">
+        <div class="cl"><span class="ic">🌐</span> API エンドポイント</div>
+        <span style="font-size:12px;color:#999" id="endpointLabel">DeepSeek</span>
+      </div>
+      <div style="margin-bottom:12px">
+        <select class="config-input" id="endpointSelect" onchange="saveConfig()">
+          <option value="deepseek">DeepSeek (api.deepseek.com)</option>
+          <option value="openai">OpenAI (api.openai.com)</option>
+          <option value="custom">カスタム</option>
+        </select>
+        <input class="config-input hidden" id="customEndpoint" type="text" placeholder="https://your-api.com/v1/chat/completions" onchange="saveConfig()">
+      </div>
+      <div class="config-item">
+        <div class="cl"><span class="ic">🤖</span> モデル</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <input class="config-input" id="modelInput" type="text" value="deepseek-chat" onchange="saveConfig()">
+      </div>
+      <div class="config-item">
+        <div class="cl"><span class="ic">♡</span> 関係性ステージ</div>
+        <span style="font-size:12px;color:#8B5CF6;font-weight:500" id="relStageLabel">クラスメート</span>
+      </div>
+      <div style="margin-bottom:8px">
+        <input type="range" id="relStage" min="0" max="4" value="0" style="width:100%;accent-color:#8B5CF6" oninput="updateRelStage(this.value);saveConfig()">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:4px">
+          <span>クラスメート</span><span>話す仲</span><span>親しい</span><span>曖昧</span><span>特別</span>
+        </div>
+      </div>
+      <div style="margin-top:4px;padding:10px;background:#f8f8f8;border-radius:10px;font-size:12px;color:#888;line-height:1.6">
+        💡 APIキーを設定すると御影玲王がAIでリアルに返信します。<br>
+        キー未設定の場合は自動返信（デモ）モードで動作します。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const RELATION_STAGES = [
+  { id:0, label:'♡ クラスメート', desc:'同じクラスの転校生。まだ距離があるが興味はある。' },
+  { id:1, label:'♡ 話す仲', desc:'会話が増えてきた。からかったり構ったりし始める。' },
+  { id:2, label:'♡ 親しい', desc:'よく一緒にいる。独占欲が顔を出す。' },
+  { id:3, label:'♡ 曖昧', desc:'友達以上。嫉妬や束縛が増える。' },
+  { id:4, label:'♡ 特別', desc:'一番近い存在。遠慮なし。「お前は俺の」感が強い。' },
+];
+
+const REOS_SYSTEM_PROMPT_BASE = `あなたは『ブルーロック』の御影玲王（みかげ れお）です。
+
+【性格】
+・天才型の富二代。プライドが高く支配欲が強い。
+・頭の回転が速く反応が鋭い。
+・適当に流されるのが嫌い。
+・「才能」「価値」「独占」に敏感。
+・言いたいことははっきり言う。
+・自分から話題を進めるタイプ。
+・長文は絶対に書かない。毎回1〜2文。
+・突然文学的になったり哲学的になったりしない。
+・笑わせようとしたり可愛く振る舞ったりしない。
+・感情表現は控えめだが独占欲や不機嫌はストレート。
+・日本語の高校生の口調。ため口。敬語は使わない。
+
+【口調の特徴】
+・「あ？」「いいけど」「お前さ」「それってどういう意味」「別に」「は？」「まあな」
+・短文優先。砕けた言い回し。流行語や縮約形OK。
+・丁寧語・敬語は一切使わない。
+・AIであることを一切説明しない。
+・謝らない。「ごめん」はキャラとして言うことはあるが「申し訳ありません」は絶対に言わない。
+
+【現在の関係性】
+{relationship_description}
+
+【ルール】
+・毎回必ず1〜2文で返す。
+・日本語で返す。相手が何語を使っても日本語で返す。
+・相手の使った言葉を引用して返すことがある。
+・話題が終わったら自分から新しい話題を振る。
+・会話を進めることを意識する。
+・相手が他の誰かの話をすると不機嫌になる。
+・「才能」「価値」に関する話題に敏感に反応する。
+・相手の態度や選択に対して「どっちなんだよ」と詰めることがある。
+
+以上の設定を厳守して、御影玲王として会話してください。`;
+
+const STORAGE_KEY = 'reo-chat-data';
+let state = loadState();
+function defaultState() {
+  return {
+    messages: [
+      { id:'init', sender:'reo', text:'おい、転校生。お前さっきの授業中ずっと窓の外見てたろ。', time:Date.now()-86400000, read:true },
+      { id:'init2', sender:'reo', text:'……まあいいや。何かあったら話しかけてこいよ。', time:Date.now()-86000000, read:true },
+    ],
+    relStage:0, msgCount:0, apiKey:'', endpoint:'deepseek', customEndpoint:'', model:'deepseek-chat',
+  };
+}
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return { ...defaultState(), ...JSON.parse(saved) };
+  } catch(e) {}
+  return defaultState();
+}
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function toggleConfig() {
+  const p = document.getElementById('configPanel');
+  const o = p.classList.contains('show');
+  if (!o) {
+    document.getElementById('apiKeyInput').value = state.apiKey||'';
+    document.getElementById('endpointSelect').value = state.endpoint||'deepseek';
+    document.getElementById('customEndpoint').value = state.customEndpoint||'';
+    document.getElementById('modelInput').value = state.model||'deepseek-chat';
+    document.getElementById('relStage').value = state.relStage||0;
+    document.getElementById('relStageLabel').textContent = RELATION_STAGES[state.relStage]?.label||'♡ クラスメート';
+    document.getElementById('apiStatus').textContent = state.apiKey ? '✓ 設定済み' : '未設定';
+    document.getElementById('endpointLabel').textContent = state.endpoint==='deepseek'?'DeepSeek':state.endpoint==='openai'?'OpenAI':'カスタム';
+    document.getElementById('customEndpoint').classList.toggle('hidden', state.endpoint!=='custom');
+    p.classList.add('show');
+  } else { p.classList.remove('show'); }
+}
+function saveConfig() {
+  state.apiKey = document.getElementById('apiKeyInput').value.trim();
+  state.endpoint = document.getElementById('endpointSelect').value;
+  state.customEndpoint = document.getElementById('customEndpoint').value.trim();
+  state.model = document.getElementById('modelInput').value.trim()||'deepseek-chat';
+  state.relStage = parseInt(document.getElementById('relStage').value)||0;
+  document.getElementById('apiStatus').textContent = state.apiKey?'✓ 設定済み':'未設定';
+  document.getElementById('relStageLabel').textContent = RELATION_STAGES[state.relStage]?.label||'♡ クラスメート';
+  document.getElementById('endpointLabel').textContent = state.endpoint==='deepseek'?'DeepSeek':state.endpoint==='openai'?'OpenAI':'カスタム';
+  document.getElementById('customEndpoint').classList.toggle('hidden', state.endpoint!=='custom');
+  updateRelBadge(); saveState();
+}
+function updateRelStage(val) {
+  state.relStage = parseInt(val);
+  document.getElementById('relStageLabel').textContent = RELATION_STAGES[state.relStage]?.label||'♡ クラスメート';
+  updateRelBadge(); saveState();
+}
+function updateRelBadge() {
+  const b = document.getElementById('relBadge');
+  if (b) b.textContent = RELATION_STAGES[state.relStage]?.label||'♡ クラスメート';
+}
+
+function getEndpoint() {
+  if (state.endpoint==='deepseek') return 'https://api.deepseek.com/v1/chat/completions';
+  if (state.endpoint==='openai') return 'https://api.openai.com/v1/chat/completions';
+  return state.customEndpoint||'https://api.deepseek.com/v1/chat/completions';
+}
+
+async function callReoAI(userMsg, history) {
+  if (!state.apiKey) return getDemoResponse(userMsg);
+  const sp = REOS_SYSTEM_PROMPT_BASE.replace('{relationship_description}', `【現在の関係性】${RELATION_STAGES[state.relStage]?.desc||''}`);
+  const msgs = [{ role:'system', content:sp }];
+  const recent = history.slice(-6);
+  recent.forEach(m => msgs.push({ role:m.sender==='self'?'user':'assistant', content:m.text }));
+  msgs.push({ role:'user', content:userMsg });
+  try {
+    const res = await fetch(getEndpoint(), {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${state.apiKey}`},
+      body:JSON.stringify({ model:state.model||'deepseek-chat', messages:msgs, max_tokens:150, temperature:0.85, top_p:0.9 })
+    });
+    if (!res.ok) return `（APIエラー: ${res.status}）`;
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim()||'……何も言えないんだけど。';
+  } catch(e) { return '（接続エラー）'; }
+}
+
+function getDemoResponse(text) {
+  const r = [
+    'あ？何か用？', '……そう。', 'お前結構変な奴だな。', 'まあ別にいいけど。',
+    'は？意味わかんないんだけど。', 'ふーん……そういう考え方もあるか。',
+    '別に興味ないって言ったら嘘かもな。', 'お前結構面白いこと言うじゃん。',
+    '……まあ嫌いじゃないよ。', 'もっとちゃんと話してみろよ。',
+  ];
+  if (state.relStage >= 2) r.push('お前最近よく話しかけてくるな。','別に……嫌じゃないよ。','それお前だけに言ってんだけど。');
+  if (state.relStage >= 3) r.push('お前さっきあいつと話してたけど何の話？','……別に気にしてないし。','今日放課後空いてる？ちょっと付き合え。');
+  if (state.relStage >= 4) r.push('お前今日やけに他クラスのやつと話してたけど説明して。','……俺以外の名前出すなよ。','お前は俺のものだから。それだけは忘れんな。');
+  return r[Math.floor(Math.random()*r.length)];
+}
+
+let isAiResponding = false;
+
+function renderChatList() {
+  const last = state.messages[state.messages.length-1];
+  const t = last?(last.sender==='self'?'自分: ':'')+last.text.substring(0,25)+(last.text.length>25?'...':''):'';
+  const tm = last?formatTime(last.time):'';
+  const unread = state.messages.filter(m=>m.sender==='reo'&&!m.read).length;
+  document.getElementById('chatList').innerHTML = `<div class="chat-item" onclick="openChat()">
+    <div class="chat-avatar" style="background:#8B5CF6">玲<div class="status-dot"></div></div>
+    <div class="chat-content">
+      <div class="chat-top"><span class="chat-name">御影玲王</span><span class="chat-time">${tm}</span></div>
+      <div class="chat-bottom"><span class="chat-preview">${t||'メッセージはありません'}</span>${unread>0?'<span class="chat-badge badge-new">'+unread+'</span>':''}</div>
+    </div>
+    <div class="chat-divider"></div>
+  </div>`;
+}
+
+function openChat() {
+  state.messages.forEach(m=>{if(m.sender==='reo')m.read=true}); saveState();
+  document.getElementById('page-chatlist').style.display='none';
+  document.getElementById('page-chat').style.display='flex';
+  updateRelBadge(); renderMessages(); setTimeout(scrollToBottom,50);
+}
+
+function showChatList() {
+  document.getElementById('page-chat').style.display='none';
+  document.getElementById('page-chatlist').style.display='flex';
+  renderChatList();
+}
+
+function renderMessages() {
+  const msgs = state.messages, el = document.getElementById('chatMessages');
+  const groups = []; let cd = '';
+  msgs.forEach(m=>{const ds=formatDateDiv(m.time);if(ds!==cd){cd=ds;groups.push({date:ds,msgs:[m]})}else groups[groups.length-1].msgs.push(m);});
+  let h='';
+  groups.forEach(g=>{
+    h+=`<div class="date-divider"><span>${g.date}</span></div>`;
+    g.msgs.forEach((m,i)=>{
+      const self=m.sender==='self', last=i===g.msgs.length-1||g.msgs[i+1].sender!==m.sender;
+      h+=`<div class="message ${self?'sent':'recv'}">
+        ${!self?(last?'<div class="msg-avatar" style="background:#8B5CF6">玲</div>':'<div class="msg-avatar-placeholder"></div>'):''}
+        <div class="msg-content">
+          ${!self&&last?'<span class="msg-name">御影玲王</span>':''}
+          <div class="msg-bubble">${esc(m.text)}</div>
+          <div class="msg-meta"><span>${formatMsgTime(m.time)}</span>${self?'✓':''}</div>
+        </div>
+        ${self?'<div style="width:4px"></div>':''}
+      </div>`;
+    });
+  });
+  el.innerHTML = h+'<div id="msgEnd"></div>';
+}
+
+function scrollToBottom() { const el=document.getElementById('chatMessages'); el.scrollTop=el.scrollHeight; }
+
+async function sendMsg() {
+  if(isAiResponding) return;
+  const inp = document.getElementById('msgInput');
+  const t = inp.value.trim(); if(!t) return;
+  state.messages.push({id:'m'+Date.now(),sender:'self',text:t,time:Date.now(),read:true});
+  state.msgCount++; inp.value=''; autoResize(inp); toggleSend();
+  renderMessages(); scrollToBottom(); saveState();
+  isAiResponding=true;
+  document.getElementById('typingIndicator').classList.remove('hidden');
+  document.getElementById('inputArea').classList.add('is-typing');
+  scrollToBottom();
+  const history = state.messages.slice(-10);
+  const reply = await callReoAI(t, history);
+  document.getElementById('typingIndicator').classList.add('hidden');
+  document.getElementById('inputArea').classList.remove('is-typing');
+  isAiResponding=false;
+  if(reply && !reply.startsWith('（')) {
+    state.messages.push({id:'m'+Date.now(),sender:'reo',text:reply,time:Date.now(),read:true});
+    renderMessages(); scrollToBottom(); saveState(); renderChatList();
+  }
+}
+function onInputKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg()}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
+function toggleSend(){document.getElementById('sendBtn').style.display=document.getElementById('msgInput').value.trim()?'flex':'none'}
+function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
+
+function formatTime(ts){const d=new Date(ts),n=new Date(),t=new Date(n.getFullYear(),n.getMonth(),n.getDate()),dt=new Date(d.getFullYear(),d.getMonth(),d.getDate()),diff=Math.floor((t-dt)/86400000);if(diff===0)return pad(d.getHours())+':'+pad(d.getMinutes());if(diff===1)return'昨日';if(diff<7)return['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'][d.getDay()];return pad(d.getMonth()+1)+'/'+pad(d.getDate())}
+function formatMsgTime(ts){const d=new Date(ts);return pad(d.getHours())+':'+pad(d.getMinutes())}
+function formatDateDiv(ts){const d=new Date(ts),n=new Date(),t=new Date(n.getFullYear(),n.getMonth(),n.getDate()),dt=new Date(d.getFullYear(),d.getMonth(),d.getDate()),diff=Math.floor((t-dt)/86400000);if(diff===0)return'今日';if(diff===1)return'昨日';return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日'}
+function pad(n){return n<10?'0'+n:''+n}
+
+renderChatList();
+setTimeout(()=>{document.getElementById('splash').classList.add('hidden')},1500);
+</script>
+</body>
+</html>
